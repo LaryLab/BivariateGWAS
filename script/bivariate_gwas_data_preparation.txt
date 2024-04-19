@@ -1,0 +1,91 @@
+###### Get RSID from chromosome number and basepair position
+##### I downloaded all dbsnp info for genome build GRCh37p7
+#### The file is saved in Discovery /work/larylab/NAYEMA/BIVARIATE_GWAS /00-All37.vcf.gz       (00-common_all.vcf.gz for genome build 38)
+#### Check the header of the file to make sure about the genomebuild and information available
+#### Alzheimere disease summary statistics data was on genome build 38 but all the bmd data were in 37 , so i converted everything to genome build 37 using liftover software
+ code for liftover is provided in R script called liftover_summarystats_R.script path is /work/larylab/NAYEMA/BIVARIATE_GWAS /
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ #### AD genome build 37 files are saved in the same directory as AD.txt
+ 
+ 
+ 
+## Interactive mode as we will handle large data
+
+```bash
+ srun --partition=short --nodes=1 --cpus-per-task=1 --pty /bin/bash  
+ ```
+### read annotation data from dbsnp
+ ```bash  
+    zcat 00-All37.vcf.gz | head -n 100
+    ``` 
+    
+### Now, using vcftool extract the first 5 columns #CHROM  POS     ID      REF     ALT     QUAL    FILTER 
+
+ ```bash
+ module load vcftools
+ module load gcc
+ 
+ ####Check your trait data lenghts 
+ 
+ wc -l GCST90027158_buildGRCh38.tsv (Alzheimer data) ##### 21101115 snps data avaiable
+ wc -l fn2stu.MAF0_.005.pos.out_  (fn_bmd_data)   ##### 10586900  snps data available
+ 
+ 
+ 
+ 
+ ```bash 
+ vcftools --gzvcf 00-All37.vcf.gz --out META_RSID --recode 
+  
+#### the output file is META_RSID.recode.vcf 
+
+#### Now merge this file with bmd data sorting with position to get the rsid number 
+
+
+
+#### Remove indels (optional)
+vcftools --vcf META_RSID.recode.vcf --remove-indels --recode --recode-INFO-all --out filtered_output
+
+
+
+
+
+
+#### Now To extract only the lines from META_RSID.recode.vcf where the values in the CHROM and POS columns match with the corresponding values in fn2stu.MAF0_.005.pos_.out_, fa2stu.MAF0_.005.pos_.out_, ls2stu.MAF0_.005.pos.out_
+
+awk 'FNR==NR{a[$1,$2]; next} ($1,$2) in a' fn2stu.MAF0_.005.pos.out_ META_RSID.recode.vcf > matched_lines_fnbmd.txt
+awk 'FNR==NR{a[$1,$2]; next} ($1,$2) in a' fa2stu.MAF0_.005.pos_.out_ META_RSID.recode.vcf > matched_lines_fabmd.txt
+awk 'FNR==NR{a[$1,$2]; next} ($1,$2) in a' ls2stu.MAF0_.005.pos.out_ META_RSID.recode.vcf > matched_lines_lsbmd.txt
+
+
+
+##### remove the indels except there is comma because they contains info 
+awk 'BEGIN { FS="\t"; OFS="\t" } { if ((length($4) == 1 || $4 ~ /,/) && (length($5) == 1 || $5 ~ /,/)) print }' matched_lines_fnbmd.txt > matched_lines_fnbmd_no_indel.txt
+awk 'BEGIN { FS="\t"; OFS="\t" } { if ((length($4) == 1 || $4 ~ /,/) && (length($5) == 1 || $5 ~ /,/)) print }' matched_lines_fabmd.txt > matched_lines_fabmd_no_indel.txt
+awk 'BEGIN { FS="\t"; OFS="\t" } { if ((length($4) == 1 || $4 ~ /,/) && (length($5) == 1 || $5 ~ /,/)) print }' matched_lines_lsbmd.txt > matched_lines_lsbmd_no_indel.txt
+
+
+
+
+
+####  add columns to matched_lines files (optional can be done in r as well)
+
+sed -i '1s/^/#CHR\tPOS\tSNP_ID\tREF\tALT\tExtra1\tExtra2\tExtra3\n/' matched_lines_fnbmd.txt
+
+
+
+##### next data preparation and merging steps ---look for BMD_data_preparation.R script 
+
+
+
+
+#### which are in nominal p value 
+#### Do bivariate 
+#### Make manhattan plot using summary statistic data 
+
+#### 6101090584 red 2012 ford 
